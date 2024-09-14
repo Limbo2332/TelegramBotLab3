@@ -51,11 +51,14 @@ namespace TelegramBotLab3
         private static void InitializeConfigurationKeys()
         {
             var builder = new ConfigurationBuilder()
+                .AddEnvironmentVariables()
                 .AddUserSecrets<Program>()
                 .Build();
 
-            TGBot_AccessKey = builder.GetSection("TelegramBotAccessKey").Value!;
-            OpenAI_ApiKey = builder.GetSection("OpenAI_ApiKey").Value!;
+            TGBot_AccessKey = Environment.GetEnvironmentVariable("TelegramBotAccessKey") 
+                ?? builder.GetSection("TelegramBotAccessKey").Value!;
+            OpenAI_ApiKey = Environment.GetEnvironmentVariable("OpenAI_ApiKey") 
+                ?? builder.GetSection("OpenAI_ApiKey").Value!;
         }
 
         private static async Task StartTelegramBot()
