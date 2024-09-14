@@ -17,35 +17,9 @@ namespace TelegramBotLab3
 
         static async Task Main(string[] args)
         {
-            await InitializeAzureWebServices();
-
             InitializeConfigurationKeys();
 
             await StartTelegramBot();
-        }
-
-        private static async Task InitializeAzureWebServices()
-        {
-            var builder = new HostBuilder();
-            builder.UseEnvironment(Environments.Development);
-
-            builder.ConfigureWebJobs(b =>
-            {
-                b.AddAzureStorageCoreServices();
-                b.AddAzureStorageQueues();
-            });
-
-            builder.ConfigureLogging((context, b) =>
-            {
-                b.AddConsole();
-            });
-
-            var host = builder.Build();
-
-            using (host)
-            {
-                await host.RunAsync();
-            };
         }
 
         private static void InitializeConfigurationKeys()
@@ -121,11 +95,11 @@ namespace TelegramBotLab3
             }
         }
 
-        private static Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken token)
+        private static async Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken token)
         {
             Console.WriteLine($"Something went wrong: {exception.Message}");
 
-            return Task.CompletedTask;
+            await Task.Delay(100);
         }
     }
 }
