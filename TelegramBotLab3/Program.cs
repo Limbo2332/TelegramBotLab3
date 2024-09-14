@@ -2,7 +2,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using Telegram.Bot;
+using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramBotLab3.Constants;
@@ -12,6 +14,7 @@ namespace TelegramBotLab3
 {
     public class Program
     {
+        private static TelegramBotClient BotClient;
         private static string OpenAI_ApiKey = string.Empty;
         private static string TGBot_AccessKey = string.Empty;
 
@@ -19,7 +22,9 @@ namespace TelegramBotLab3
         {
             InitializeConfigurationKeys();
 
-            await StartTelegramBot();
+            BotClient = await StartTelegramBot();
+
+            Console.ReadLine();
         }
 
         private static void InitializeConfigurationKeys()
@@ -35,7 +40,7 @@ namespace TelegramBotLab3
                 ?? builder.GetSection("OpenAI_ApiKey").Value!;
         }
 
-        private static async Task StartTelegramBot()
+        private static async Task<TelegramBotClient> StartTelegramBot()
         {
             var bot = new TelegramBotClient(TGBot_AccessKey);
 
@@ -47,59 +52,59 @@ namespace TelegramBotLab3
                 }
             });
 
-            bot.StartReceiving(
-                HandleUpdateAsync,
-                HandleErrorAsync
-            );
+            bot.OnError += HandleErrorAsync;
+            bot.OnUpdate += HandleUpdateAsync;
+            bot.OnMessage += HandleMessageAsync;
 
             Console.WriteLine("Bot is up and running.");
-            Console.ReadLine();
+
+            return bot;
         }
 
-        private static async Task HandleUpdateAsync(ITelegramBotClient client, Update update, CancellationToken token)
+        private static async Task HandleMessageAsync(Message message, UpdateType type)
         {
-            if (update.Type == UpdateType.Message && update.Message?.Text is not null)
+            if (type == UpdateType.Message && message.Text is not null)
             {
-                var chatId = update.Message.Chat.Id;
+                var chatId = message.Chat.Id;
 
-                if (update.Message.Text == TextOptions.StartOption)
+                if (message.Text == TextOptions.StartOption)
                 {
-                    await client.SendTextMessageToAllOptionsAsync(chatId, TextOptions.WelcomeMessage, token);
+                    await BotClient.SendTextMessageToAllOptionsAsync(chatId, TextOptions.WelcomeMessage);
                 }
                 else
                 {
                     var chatGpt = new ChatGpt(OpenAI_ApiKey);
 
-                    var response = await chatGpt.Ask(update.Message.Text);
+                    var response = await chatGpt.Ask(message.Text);
 
-                    await client.SendTextMessageToBackOptionsAsync(chatId, response, token);
+                    await BotClient.SendTextMessageToBackOptionsAsync(chatId, response);
                 }
-            }
-
-            if (update.Type == UpdateType.CallbackQuery && update.CallbackQuery is not null)
-            {
-                var callbackQuery = update.CallbackQuery;
-                var chatId = callbackQuery.Message!.Chat.Id;
-
-                await (callbackQuery.Data switch
-                {
-                    TextOptions.StudentsOption => client.SendTextMessageToBackOptionsAsync(chatId, TextOptions.StudentsOptionAnswer, token),
-                    TextOptions.ITOption => client.SendTextMessageToBackOptionsAsync(chatId, TextOptions.ITOptionAnswer, token),
-                    TextOptions.ContactsOption => client.SendTextMessageToBackOptionsAsync(chatId, TextOptions.ContactsOptionAnswer, token),
-                    TextOptions.ChatGPTOption => client.SendTextMessageAsync(chatId, TextOptions.MessageToChatGpt, cancellationToken: token),
-                    TextOptions.BackOption => client.SendTextMessageToAllOptionsAsync(chatId, TextOptions.WelcomeMessage, token),
-                    _ => throw new NotImplementedException()
-                });
-
-                await client.AnswerCallbackQueryAsync(callbackQuery.Id, cancellationToken: token);
             }
         }
 
-        private static async Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken token)
+        private static async Task HandleUpdateAsync(Update update)
+        {
+            var callbackQuery = update.CallbackQuery;
+            var chatId = callbackQuery!.Message!.Chat.Id;
+
+            await(callbackQuery.Data switch
+            {
+                TextOptions.StudentsOption => BotClient.SendTextMessageToBackOptionsAsync(chatId, TextOptions.StudentsOptionAnswer),
+                TextOptions.ITOption => BotClient.SendTextMessageToBackOptionsAsync(chatId, TextOptions.ITOptionAnswer),
+                TextOptions.ContactsOption => BotClient.SendTextMessageToBackOptionsAsync(chatId, TextOptions.ContactsOptionAnswer),
+                TextOptions.ChatGPTOption => BotClient.SendTextMessageAsync(chatId, TextOptions.MessageToChatGpt),
+                TextOptions.BackOption => BotClient.SendTextMessageToAllOptionsAsync(chatId, TextOptions.WelcomeMessage),
+                _ => throw new NotImplementedException()
+            });
+
+            await BotClient.AnswerCallbackQueryAsync(callbackQuery.Id);
+        }
+
+        private static Task HandleErrorAsync(Exception exception, HandleErrorSource source)
         {
             Console.WriteLine($"Something went wrong: {exception.Message}");
 
-            await Task.Delay(100);
+            return Task.CompletedTask;
         }
     }
 }

@@ -8,27 +8,23 @@ namespace TelegramBotLab3.Extensions
     {
         public static async Task SendTextMessageToAllOptionsAsync(this ITelegramBotClient client, 
             long chatId, 
-            string text, 
-            CancellationToken token)
+            string text)
         {
             await client.SendTextMessageAsync(
                 chatId,
                 text,
-                replyMarkup: InlineKeyboardOptions.AllOptions,
-                cancellationToken: token
+                replyMarkup: InlineKeyboardOptions.AllOptions
             );
         }
 
         public static async Task SendTextMessageToBackOptionsAsync(this ITelegramBotClient client,
             long chatId,
-            string text,
-            CancellationToken token)
+            string text)
         {
             await client.SendTextMessageAsync(
                 chatId,
                 text,
-                replyMarkup: InlineKeyboardOptions.BackOptions,
-                cancellationToken: token
+                replyMarkup: InlineKeyboardOptions.BackOptions
             );
         }
     }
