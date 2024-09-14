@@ -62,3 +62,6 @@ jobs:
           app-name: "TelegramBotLab320240914180222"
           slot-name: "Production"
           package: .
+          app-settings: |
+            TelegramBotAccessKey=${{ secrets.TelegramBotAccessKey }}
+            OpenAI_ApiKey=${{ secrets.OpenAI_ApiKey }}
